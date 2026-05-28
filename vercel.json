@@ -1,8 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/scrape-and-score",
-      "schedule": "0 */4 * * *"
-    }
-  ]
-}
+{}

@@ -5,6 +5,11 @@ import { JobCard } from "@/components/JobCard";
 import { Sidebar } from "@/components/Sidebar";
 import type { Job } from "@/lib/types";
 
+type LastScrapedPayload = {
+  last_scraped: string | null;
+  error?: string;
+};
+
 export default function DashboardPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [allJobs, setAllJobs] = useState<Job[]>([]);
@@ -14,6 +19,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isScraping, setIsScraping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastScraped, setLastScraped] = useState<string | null>(null);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -25,11 +31,16 @@ export default function DashboardPage() {
     if (search.trim()) params.set("search", search.trim());
 
     try {
-      const [response, allResponse] = await Promise.all([
+      const [response, allResponse, lastScrapedResponse] = await Promise.all([
         fetch(`/api/jobs?${params.toString()}`, { cache: "no-store" }),
-        fetch("/api/jobs", { cache: "no-store" })
+        fetch("/api/jobs", { cache: "no-store" }),
+        fetch("/api/jobs/last-scraped", { cache: "no-store" })
       ]);
-      const [payload, allPayload] = await Promise.all([response.json(), allResponse.json()]);
+      const [payload, allPayload, lastScrapedPayload] = (await Promise.all([
+        response.json(),
+        allResponse.json(),
+        lastScrapedResponse.json()
+      ])) as [{ jobs?: Job[]; error?: string }, { jobs?: Job[]; error?: string }, LastScrapedPayload];
 
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to load jobs");
@@ -39,8 +50,13 @@ export default function DashboardPage() {
         throw new Error(allPayload.error ?? "Failed to load jobs");
       }
 
+      if (!lastScrapedResponse.ok) {
+        throw new Error(lastScrapedPayload.error ?? "Failed to load last scraped timestamp");
+      }
+
       setJobs(payload.jobs ?? []);
       setAllJobs(allPayload.jobs ?? []);
+      setLastScraped(lastScrapedPayload.last_scraped);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load jobs");
     } finally {
@@ -63,10 +79,6 @@ export default function DashboardPage() {
     }),
     [allJobs]
   );
-
-  const lastScraped = useMemo(() => {
-    return allJobs.map((job) => job.scraped_at).filter(Boolean).sort().at(-1) ?? null;
-  }, [allJobs]);
 
   async function scrapeNow() {
     setIsScraping(true);

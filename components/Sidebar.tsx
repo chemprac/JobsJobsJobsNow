@@ -24,6 +24,29 @@ type SidebarProps = {
 const tierOptions = ["All", "A", "B", "C"];
 const statusOptions = ["new", "reviewing", "applied", "rejected", "interviewing"];
 
+function formatRelativeTime(value: string | null) {
+  if (!value) return "Never scraped";
+
+  const timestamp = new Date(value).getTime();
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+
+  if (diffSeconds < 60) return "Last scraped: just now";
+
+  const units = [
+    { label: "year", seconds: 60 * 60 * 24 * 365 },
+    { label: "month", seconds: 60 * 60 * 24 * 30 },
+    { label: "day", seconds: 60 * 60 * 24 },
+    { label: "hour", seconds: 60 * 60 },
+    { label: "minute", seconds: 60 }
+  ];
+  const unit = units.find((item) => diffSeconds >= item.seconds);
+
+  if (!unit) return "Last scraped: just now";
+
+  const count = Math.floor(diffSeconds / unit.seconds);
+  return `Last scraped: ${count} ${unit.label}${count === 1 ? "" : "s"} ago`;
+}
+
 export function Sidebar({
   stats,
   tier,
@@ -104,15 +127,17 @@ export function Sidebar({
           />
         </label>
 
-        <button
-          onClick={onScrape}
-          disabled={isScraping}
-          className="w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isScraping ? "Scraping..." : "Scrape Now"}
-        </button>
-
-        <p className="text-xs text-neutral-500">Last scraped: {lastScraped ? new Date(lastScraped).toLocaleString() : "No jobs yet"}</p>
+        <div className="space-y-2">
+          <button
+            onClick={onScrape}
+            disabled={isScraping}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isScraping ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black" /> : null}
+            {isScraping ? "Scraping..." : "Scrape Now"}
+          </button>
+          <p className="text-xs text-neutral-500">{formatRelativeTime(lastScraped)}</p>
+        </div>
       </div>
     </aside>
   );
