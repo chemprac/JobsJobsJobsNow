@@ -1,6 +1,7 @@
 import { triggerApifyRun } from "./apify";
-import { delay, mapApifyJobToInsert, scoreJob } from "./scoring";
+import { mapApifyJobToInsert, scoreJob } from "./scoring";
 import { getSupabaseService } from "./supabase";
+import type { ApifyJob } from "./types";
 
 export type ScrapeSummary = {
   processed: number;
@@ -8,60 +9,63 @@ export type ScrapeSummary = {
   errors: number;
 };
 
-export async function scrapeAndScoreJobs(searchUrl: string, maxItems: number): Promise<ScrapeSummary> {
+export type IngestResult = "processed" | "skipped" | "error";
+
+export async function ingestSingleJob(job: ApifyJob): Promise<IngestResult> {
   const supabase = getSupabaseService();
+
+  if (!job.jobId || !job.jobTitle || !job.jobDescription?.trim()) {
+    return "skipped";
+  }
+
+  try {
+    const { data: existing, error: lookupError } = await supabase
+      .from("jobs")
+      .select("id, blocker")
+      .eq("job_id", job.jobId)
+      .maybeSingle();
+
+    if (lookupError) {
+      throw lookupError;
+    }
+
+    if (existing && existing.blocker !== "Scoring failed") {
+      return "skipped";
+    }
+
+    const scoring = await scoreJob(job);
+    const row = mapApifyJobToInsert(job, scoring);
+
+    if (existing) {
+      const { error: updateError } = await supabase.from("jobs").update(row).eq("id", existing.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return "processed";
+    }
+
+    const { error: insertError } = await supabase.from("jobs").insert(row);
+
+    if (insertError) {
+      throw insertError;
+    }
+
+    return "processed";
+  } catch (error) {
+    console.error("Failed to ingest job", job.jobId, error);
+    return "error";
+  }
+}
+
+export async function scrapeAndScoreJobs(searchUrl: string, maxItems: number): Promise<ScrapeSummary> {
   const jobs = await triggerApifyRun(searchUrl, maxItems);
   const summary: ScrapeSummary = { processed: 0, skipped: 0, errors: 0 };
 
   for (const job of jobs) {
-    try {
-      if (!job.jobId || !job.jobTitle || !job.jobDescription?.trim()) {
-        summary.skipped += 1;
-        continue;
-      }
-
-      const { data: existing, error: lookupError } = await supabase
-        .from("jobs")
-        .select("id, blocker")
-        .eq("job_id", job.jobId)
-        .maybeSingle();
-
-      if (lookupError) {
-        throw lookupError;
-      }
-
-      if (existing && existing.blocker !== "Scoring failed") {
-        summary.skipped += 1;
-        continue;
-      }
-
-      const scoring = await scoreJob(job);
-      const row = mapApifyJobToInsert(job, scoring);
-
-      if (existing) {
-        const { error: updateError } = await supabase.from("jobs").update(row).eq("id", existing.id);
-
-        if (updateError) {
-          throw updateError;
-        }
-
-        summary.processed += 1;
-        await delay(500);
-        continue;
-      }
-
-      const { error: insertError } = await supabase.from("jobs").insert(row);
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      summary.processed += 1;
-      await delay(500);
-    } catch (error) {
-      console.error("Failed to process job", job.jobId, error);
-      summary.errors += 1;
-    }
+    const result = await ingestSingleJob(job);
+    summary[result === "error" ? "errors" : result === "processed" ? "processed" : "skipped"] += 1;
   }
 
   return summary;

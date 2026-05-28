@@ -18,6 +18,7 @@ type SidebarProps = {
   maxItems: number;
   lastScraped: string | null;
   isScraping: boolean;
+  scrapeProgress: string | null;
   onTierChange: (tier: string) => void;
   onStatusChange: (status: string) => void;
   onSearchChange: (search: string) => void;
@@ -61,6 +62,7 @@ export function Sidebar({
   maxItems,
   lastScraped,
   isScraping,
+  scrapeProgress,
   onTierChange,
   onStatusChange,
   onSearchChange,
@@ -169,6 +171,7 @@ export function Sidebar({
             {isScraping ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black" /> : null}
             {isScraping ? "Scraping..." : "Scrape Now"}
           </button>
+          {scrapeProgress ? <p className="text-xs text-emerald-400">{scrapeProgress}</p> : null}
           <p className="text-xs text-neutral-500">{formatRelativeTime(lastScraped)}</p>
         </div>
       </div>

@@ -4,17 +4,45 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { JobCard } from "@/components/JobCard";
 import { Sidebar } from "@/components/Sidebar";
 import { APIFY_DEFAULT_MAX_ITEMS, DEFAULT_LINKEDIN_SEARCH_URL } from "@/lib/apify";
-import type { Job } from "@/lib/types";
+import type { ApifyJob, Job } from "@/lib/types";
 
 const SEARCH_URL_STORAGE_KEY = "jobScoutSearchUrl";
 const MAX_ITEMS_STORAGE_KEY = "jobScoutMaxItems";
 
-type ScrapeSummary = {
-  processed?: number;
-  skipped?: number;
-  errors?: number;
+type IngestPayload = {
+  result?: "processed" | "skipped" | "error";
   error?: string;
 };
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForApifyRun(runId: string, onProgress: (message: string) => void) {
+  const finished = new Set(["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"]);
+
+  while (true) {
+    const response = await fetch(`/api/apify/run/${runId}`, { cache: "no-store" });
+    const payload = await readApiPayload<{ status?: string; error?: string }>(response);
+
+    if (!response.ok) {
+      throw new Error(payload.error ?? "Failed to check Apify run status");
+    }
+
+    const status = payload.status ?? "UNKNOWN";
+    onProgress(`LinkedIn scrape: ${status.toLowerCase()}...`);
+
+    if (status === "SUCCEEDED") {
+      return;
+    }
+
+    if (finished.has(status) && status !== "SUCCEEDED") {
+      throw new Error(`Apify run failed with status ${status}`);
+    }
+
+    await sleep(5000);
+  }
+}
 
 type LastScrapedPayload = {
   last_scraped: string | null;
@@ -137,19 +165,61 @@ export default function DashboardPage() {
     setError(null);
     setScrapeMessage(null);
 
+    const summary = { processed: 0, skipped: 0, errors: 0 };
+
     try {
-      const response = await fetch("/api/scrape", {
+      setScrapeMessage("Starting LinkedIn scrape...");
+
+      const startResponse = await fetch("/api/apify/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ searchUrl: searchUrl.trim(), maxItems })
       });
-      const payload = await readApiPayload<ScrapeSummary>(response);
+      const startPayload = await readApiPayload<{ runId?: string; error?: string }>(startResponse);
 
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Scrape failed");
+      if (!startResponse.ok || !startPayload.runId) {
+        throw new Error(startPayload.error ?? "Failed to start Apify scrape");
       }
 
-      setScrapeMessage(`Added ${payload.processed ?? 0} jobs. Skipped ${payload.skipped ?? 0}. Errors ${payload.errors ?? 0}.`);
+      await waitForApifyRun(startPayload.runId, setScrapeMessage);
+
+      setScrapeMessage("Fetching scraped jobs...");
+      const itemsResponse = await fetch(`/api/apify/run/${startPayload.runId}/items`, { cache: "no-store" });
+      const itemsPayload = await readApiPayload<{ jobs?: ApifyJob[]; error?: string }>(itemsResponse);
+
+      if (!itemsResponse.ok) {
+        throw new Error(itemsPayload.error ?? "Failed to fetch scraped jobs");
+      }
+
+      const scrapedJobs = itemsPayload.jobs ?? [];
+
+      for (let index = 0; index < scrapedJobs.length; index += 1) {
+        setScrapeMessage(`Scoring job ${index + 1} of ${scrapedJobs.length}...`);
+
+        const ingestResponse = await fetch("/api/jobs/ingest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ job: scrapedJobs[index] })
+        });
+        const ingestPayload = await readApiPayload<IngestPayload>(ingestResponse);
+
+        if (!ingestResponse.ok) {
+          summary.errors += 1;
+          continue;
+        }
+
+        if (ingestPayload.result === "processed") {
+          summary.processed += 1;
+        } else if (ingestPayload.result === "skipped") {
+          summary.skipped += 1;
+        } else {
+          summary.errors += 1;
+        }
+
+        await sleep(300);
+      }
+
+      setScrapeMessage(`Added ${summary.processed} jobs. Skipped ${summary.skipped}. Errors ${summary.errors}.`);
       await loadJobs();
     } catch (scrapeError) {
       setError(scrapeError instanceof Error ? scrapeError.message : "Scrape failed");
@@ -169,6 +239,7 @@ export default function DashboardPage() {
         maxItems={maxItems}
         lastScraped={lastScraped}
         isScraping={isScraping}
+        scrapeProgress={isScraping ? scrapeMessage : null}
         onTierChange={setTier}
         onStatusChange={setStatus}
         onSearchChange={setSearch}

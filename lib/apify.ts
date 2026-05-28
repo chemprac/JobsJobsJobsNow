@@ -72,6 +72,56 @@ async function readApifyError(response: Response) {
   }
 }
 
+export async function startApifyRunAsync(searchUrl: string, maxItems: number) {
+  const { token, actorId } = getApifyConfig();
+  const url = `${APIFY_BASE_URL}/acts/${encodeURIComponent(actorId)}/runs?token=${token}`;
+  const response = await fetch(url, {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildApifyInput(searchUrl, maxItems))
+  });
+
+  if (!response.ok) {
+    throw new Error(`Apify run failed: ${await readApifyError(response)}`);
+  }
+
+  const payload = (await response.json()) as { data?: { id?: string } };
+  const runId = payload.data?.id;
+
+  if (!runId) {
+    throw new Error("Apify did not return a run ID.");
+  }
+
+  return runId;
+}
+
+export async function getApifyRunStatus(runId: string) {
+  const { token } = getApifyConfig();
+  const url = `${APIFY_BASE_URL}/actor-runs/${runId}?token=${token}`;
+  const response = await fetch(url, { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(`Apify status check failed: ${await readApifyError(response)}`);
+  }
+
+  const payload = (await response.json()) as { data?: { status?: string } };
+  return payload.data?.status ?? "UNKNOWN";
+}
+
+export async function fetchApifyRunItems(runId: string) {
+  const { token } = getApifyConfig();
+  const params = new URLSearchParams({ token, format: "json" });
+  const url = `${APIFY_BASE_URL}/actor-runs/${runId}/dataset/items?${params.toString()}`;
+  const response = await fetch(url, { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(`Apify dataset fetch failed: ${await readApifyError(response)}`);
+  }
+
+  return (await response.json()) as ApifyJob[];
+}
+
 export async function triggerApifyRun(searchUrl: string, maxItems: number) {
   const { token, actorId } = getApifyConfig();
   const url = `${APIFY_BASE_URL}/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${token}`;
