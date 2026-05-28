@@ -140,7 +140,7 @@ export function Sidebar({
             rows={4}
             className="w-full rounded-xl border border-app-border bg-app-card px-4 py-3 text-xs leading-5 text-white outline-none ring-emerald-500 transition placeholder:text-neutral-500 focus:ring-2"
           />
-          <p className="mt-2 text-xs text-neutral-500">Scrapes up to 100 jobs from this search.</p>
+          <p className="mt-2 text-xs text-neutral-500">Scrapes up to 150 jobs from this search.</p>
         </label>
 
         <div className="space-y-2">

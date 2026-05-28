@@ -1,7 +1,7 @@
 import type { ApifyJob } from "./types";
 
 const APIFY_BASE_URL = "https://api.apify.com/v2";
-export const APIFY_MAX_ITEMS = 100;
+export const APIFY_MAX_ITEMS = 150;
 
 export const DEFAULT_LINKEDIN_SEARCH_URL =
   "https://www.linkedin.com/jobs/search/?distance=25&f_E=3%2C4%2C5%2C6&f_TPR=r86400&f_WT=2&geoId=91000007&keywords=growth";
