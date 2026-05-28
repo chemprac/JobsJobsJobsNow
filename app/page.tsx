@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { JobCard } from "@/components/JobCard";
 import { Sidebar } from "@/components/Sidebar";
-import { DEFAULT_LINKEDIN_SEARCH_URL } from "@/lib/apify";
+import { APIFY_DEFAULT_MAX_ITEMS, DEFAULT_LINKEDIN_SEARCH_URL } from "@/lib/apify";
 import type { Job } from "@/lib/types";
 
 const SEARCH_URL_STORAGE_KEY = "jobScoutSearchUrl";
+const MAX_ITEMS_STORAGE_KEY = "jobScoutMaxItems";
 
 type ScrapeSummary = {
   processed?: number;
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [searchUrl, setSearchUrl] = useState(DEFAULT_LINKEDIN_SEARCH_URL);
+  const [maxItems, setMaxItems] = useState(APIFY_DEFAULT_MAX_ITEMS);
   const [loading, setLoading] = useState(true);
   const [isScraping, setIsScraping] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,15 +50,28 @@ export default function DashboardPage() {
   const [lastScraped, setLastScraped] = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(SEARCH_URL_STORAGE_KEY);
-    if (saved) {
-      setSearchUrl(saved);
+    const savedUrl = window.localStorage.getItem(SEARCH_URL_STORAGE_KEY);
+    const savedMaxItems = window.localStorage.getItem(MAX_ITEMS_STORAGE_KEY);
+
+    if (savedUrl) {
+      setSearchUrl(savedUrl);
+    }
+
+    if (savedMaxItems) {
+      const parsed = Number(savedMaxItems);
+      if (Number.isFinite(parsed)) {
+        setMaxItems(parsed);
+      }
     }
   }, []);
 
   useEffect(() => {
     window.localStorage.setItem(SEARCH_URL_STORAGE_KEY, searchUrl);
   }, [searchUrl]);
+
+  useEffect(() => {
+    window.localStorage.setItem(MAX_ITEMS_STORAGE_KEY, String(maxItems));
+  }, [maxItems]);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -126,7 +141,7 @@ export default function DashboardPage() {
       const response = await fetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ searchUrl: searchUrl.trim() })
+        body: JSON.stringify({ searchUrl: searchUrl.trim(), maxItems })
       });
       const payload = await readApiPayload<ScrapeSummary>(response);
 
@@ -151,12 +166,14 @@ export default function DashboardPage() {
         status={status}
         search={search}
         searchUrl={searchUrl}
+        maxItems={maxItems}
         lastScraped={lastScraped}
         isScraping={isScraping}
         onTierChange={setTier}
         onStatusChange={setStatus}
         onSearchChange={setSearch}
         onSearchUrlChange={setSearchUrl}
+        onMaxItemsChange={setMaxItems}
         onScrape={scrapeNow}
       />
 

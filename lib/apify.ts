@@ -1,12 +1,28 @@
 import type { ApifyJob } from "./types";
 
 const APIFY_BASE_URL = "https://api.apify.com/v2";
-export const APIFY_MAX_ITEMS = 150;
+export const APIFY_MIN_ITEMS = 150;
+export const APIFY_DEFAULT_MAX_ITEMS = 150;
+export const APIFY_MAX_ITEMS_LIMIT = 1000;
 
 export const DEFAULT_LINKEDIN_SEARCH_URL =
   "https://www.linkedin.com/jobs/search/?distance=25&f_E=3%2C4%2C5%2C6&f_TPR=r86400&f_WT=2&geoId=91000007&keywords=growth";
 
-export function buildApifyInput(searchUrl: string) {
+export function normalizeMaxItems(value: unknown) {
+  const maxItems = Number(value);
+
+  if (!Number.isFinite(maxItems) || maxItems < APIFY_MIN_ITEMS) {
+    throw new Error(`Max jobs must be at least ${APIFY_MIN_ITEMS}.`);
+  }
+
+  if (maxItems > APIFY_MAX_ITEMS_LIMIT) {
+    throw new Error(`Max jobs cannot exceed ${APIFY_MAX_ITEMS_LIMIT}.`);
+  }
+
+  return Math.round(maxItems);
+}
+
+export function buildApifyInput(searchUrl: string, maxItems: number) {
   const url = searchUrl.trim();
 
   if (!url.includes("linkedin.com/jobs")) {
@@ -15,7 +31,7 @@ export function buildApifyInput(searchUrl: string) {
 
   return {
     startUrls: [{ url }],
-    maxItems: APIFY_MAX_ITEMS,
+    maxItems: normalizeMaxItems(maxItems),
     saveOnlyUniqueItems: true
   };
 }
@@ -56,14 +72,14 @@ async function readApifyError(response: Response) {
   }
 }
 
-export async function triggerApifyRun(searchUrl: string) {
+export async function triggerApifyRun(searchUrl: string, maxItems: number) {
   const { token, actorId } = getApifyConfig();
   const url = `${APIFY_BASE_URL}/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${token}`;
   const response = await fetch(url, {
     method: "POST",
     cache: "no-store",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(buildApifyInput(searchUrl))
+    body: JSON.stringify(buildApifyInput(searchUrl, maxItems))
   });
 
   if (!response.ok) {

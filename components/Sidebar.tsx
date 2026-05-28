@@ -1,5 +1,6 @@
 "use client";
 
+import { APIFY_MIN_ITEMS, APIFY_MAX_ITEMS_LIMIT } from "@/lib/apify";
 import { StatsBar } from "./StatsBar";
 
 type SidebarProps = {
@@ -14,12 +15,14 @@ type SidebarProps = {
   status: string;
   search: string;
   searchUrl: string;
+  maxItems: number;
   lastScraped: string | null;
   isScraping: boolean;
   onTierChange: (tier: string) => void;
   onStatusChange: (status: string) => void;
   onSearchChange: (search: string) => void;
   onSearchUrlChange: (searchUrl: string) => void;
+  onMaxItemsChange: (maxItems: number) => void;
   onScrape: () => void;
 };
 
@@ -55,12 +58,14 @@ export function Sidebar({
   status,
   search,
   searchUrl,
+  maxItems,
   lastScraped,
   isScraping,
   onTierChange,
   onStatusChange,
   onSearchChange,
   onSearchUrlChange,
+  onMaxItemsChange,
   onScrape
 }: SidebarProps) {
   return (
@@ -140,13 +145,25 @@ export function Sidebar({
             rows={4}
             className="w-full rounded-xl border border-app-border bg-app-card px-4 py-3 text-xs leading-5 text-white outline-none ring-emerald-500 transition placeholder:text-neutral-500 focus:ring-2"
           />
-          <p className="mt-2 text-xs text-neutral-500">Scrapes up to 150 jobs from this search.</p>
+        </label>
+
+        <label className="block">
+          <span className="mb-2 block text-sm font-semibold text-neutral-300">Max jobs</span>
+          <input
+            type="number"
+            min={APIFY_MIN_ITEMS}
+            max={APIFY_MAX_ITEMS_LIMIT}
+            value={maxItems}
+            onChange={(event) => onMaxItemsChange(Number(event.target.value))}
+            className="w-full rounded-xl border border-app-border bg-app-card px-4 py-3 text-sm text-white outline-none ring-emerald-500 transition focus:ring-2"
+          />
+          <p className="mt-2 text-xs text-neutral-500">Minimum {APIFY_MIN_ITEMS}. Maximum {APIFY_MAX_ITEMS_LIMIT} per search.</p>
         </label>
 
         <div className="space-y-2">
           <button
             onClick={onScrape}
-            disabled={isScraping || !searchUrl.trim()}
+            disabled={isScraping || !searchUrl.trim() || maxItems < APIFY_MIN_ITEMS}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isScraping ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black" /> : null}

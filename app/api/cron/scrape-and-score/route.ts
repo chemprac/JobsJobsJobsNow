@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { DEFAULT_LINKEDIN_SEARCH_URL } from "@/lib/apify";
+import { DEFAULT_LINKEDIN_SEARCH_URL, APIFY_DEFAULT_MAX_ITEMS } from "@/lib/apify";
 import { scrapeAndScoreJobs } from "@/lib/scrape-runner";
 
 export const maxDuration = 300;
@@ -13,7 +13,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const summary = await scrapeAndScoreJobs(process.env.APIFY_SEARCH_URL ?? DEFAULT_LINKEDIN_SEARCH_URL);
+    const summary = await scrapeAndScoreJobs(
+      process.env.APIFY_SEARCH_URL ?? DEFAULT_LINKEDIN_SEARCH_URL,
+      APIFY_DEFAULT_MAX_ITEMS
+    );
     return NextResponse.json(summary);
   } catch (error) {
     console.error("Scrape and score failed", error);
