@@ -1,3 +1,4 @@
+import { SCORING_MODEL } from "@/lib/anthropic";
 import { CV_PROFILE } from "@/lib/cv-profile";
 import { streamChatCompletionText } from "@/lib/openrouter";
 import { getSupabaseService } from "@/lib/supabase";
@@ -39,6 +40,7 @@ ${question}`;
 
       try {
         await streamChatCompletionText({
+          model: SCORING_MODEL,
           maxTokens: 700,
           messages: [
             {

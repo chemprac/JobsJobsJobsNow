@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAnon } from "@/lib/supabase";
+import { getSupabaseService } from "@/lib/supabase";
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const supabase = getSupabaseAnon();
+  const supabase = getSupabaseService();
 
   const { data: job, error: jobError } = await supabase.from("jobs").select("*").eq("id", params.id).single();
 

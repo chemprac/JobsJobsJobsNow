@@ -1,3 +1,4 @@
+import { SCORING_MODEL } from "./anthropic";
 import { CV_PROFILE } from "./cv-profile";
 import { createChatCompletion } from "./openrouter";
 import type { ApifyJob, MatchTier, ScoringResult } from "./types";
@@ -79,6 +80,7 @@ Return exactly this JSON:
 
   try {
     const content = await createChatCompletion({
+      model: SCORING_MODEL,
       maxTokens: 800,
       messages: [
         { role: "system", content: SCORING_SYSTEM_PROMPT },

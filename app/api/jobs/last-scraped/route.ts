@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAnon } from "@/lib/supabase";
+import { getSupabaseService } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const supabase = getSupabaseAnon();
+  const supabase = getSupabaseService();
   const { data, error } = await supabase
     .from("jobs")
     .select("scraped_at")

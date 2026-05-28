@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAnon } from "@/lib/supabase";
+import { getSupabaseService } from "@/lib/supabase";
 import type { JobStatus, MatchTier } from "@/lib/types";
 
 const statuses: JobStatus[] = ["new", "reviewing", "applied", "rejected", "interviewing"];
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const tier = searchParams.get("tier") as MatchTier | null;
   const status = searchParams.get("status");
   const search = searchParams.get("search");
-  const supabase = getSupabaseAnon();
+  const supabase = getSupabaseService();
 
   let query = supabase.from("jobs").select("*");
 

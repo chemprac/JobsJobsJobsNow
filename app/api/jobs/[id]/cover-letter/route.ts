@@ -1,3 +1,4 @@
+import { WRITING_MODEL } from "@/lib/anthropic";
 import { COVER_LETTER_RULES, CV_PROFILE } from "@/lib/cv-profile";
 import { streamChatCompletionText } from "@/lib/openrouter";
 import { getSupabaseService } from "@/lib/supabase";
@@ -33,6 +34,7 @@ ${job.cover_letter_angle ?? ""}`;
 
       try {
         await streamChatCompletionText({
+          model: WRITING_MODEL,
           maxTokens: 500,
           messages: [
             {

@@ -48,16 +48,18 @@ function openRouterHeaders() {
 
 export async function createChatCompletion({
   messages,
-  maxTokens
+  maxTokens,
+  model
 }: {
   messages: ChatMessage[];
   maxTokens: number;
+  model: string;
 }) {
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: openRouterHeaders(),
     body: JSON.stringify({
-      model: OPENROUTER_MODEL,
+      model,
       messages,
       max_tokens: maxTokens
     })
@@ -75,17 +77,19 @@ export async function createChatCompletion({
 export async function streamChatCompletionText({
   messages,
   maxTokens,
+  model,
   onText
 }: {
   messages: ChatMessage[];
   maxTokens: number;
+  model: string;
   onText: (text: string) => void;
 }) {
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: openRouterHeaders(),
     body: JSON.stringify({
-      model: OPENROUTER_MODEL,
+      model,
       messages,
       max_tokens: maxTokens,
       stream: true
