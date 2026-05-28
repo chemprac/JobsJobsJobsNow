@@ -11,9 +11,16 @@ function scrapeErrorMessage(error: unknown) {
   return "Manual scrape failed";
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const summary = await scrapeAndScoreJobs();
+    const body = (await request.json().catch(() => ({}))) as { searchUrl?: string };
+    const searchUrl = body.searchUrl?.trim();
+
+    if (!searchUrl) {
+      return NextResponse.json({ error: "LinkedIn search URL is required." }, { status: 400 });
+    }
+
+    const summary = await scrapeAndScoreJobs(searchUrl);
     return NextResponse.json(summary);
   } catch (error) {
     console.error("Manual scrape failed", error);

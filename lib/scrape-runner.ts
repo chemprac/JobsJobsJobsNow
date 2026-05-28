@@ -8,9 +8,9 @@ export type ScrapeSummary = {
   errors: number;
 };
 
-export async function scrapeAndScoreJobs(): Promise<ScrapeSummary> {
+export async function scrapeAndScoreJobs(searchUrl: string): Promise<ScrapeSummary> {
   const supabase = getSupabaseService();
-  const jobs = await triggerApifyRun();
+  const jobs = await triggerApifyRun(searchUrl);
   const summary: ScrapeSummary = { processed: 0, skipped: 0, errors: 0 };
 
   for (const job of jobs) {

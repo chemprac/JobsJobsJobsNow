@@ -13,11 +13,13 @@ type SidebarProps = {
   tier: string;
   status: string;
   search: string;
+  searchUrl: string;
   lastScraped: string | null;
   isScraping: boolean;
   onTierChange: (tier: string) => void;
   onStatusChange: (status: string) => void;
   onSearchChange: (search: string) => void;
+  onSearchUrlChange: (searchUrl: string) => void;
   onScrape: () => void;
 };
 
@@ -52,11 +54,13 @@ export function Sidebar({
   tier,
   status,
   search,
+  searchUrl,
   lastScraped,
   isScraping,
   onTierChange,
   onStatusChange,
   onSearchChange,
+  onSearchUrlChange,
   onScrape
 }: SidebarProps) {
   return (
@@ -127,10 +131,22 @@ export function Sidebar({
           />
         </label>
 
+        <label className="block">
+          <span className="mb-2 block text-sm font-semibold text-neutral-300">LinkedIn search URL</span>
+          <textarea
+            value={searchUrl}
+            onChange={(event) => onSearchUrlChange(event.target.value)}
+            placeholder="Paste a LinkedIn jobs search URL with your filters"
+            rows={4}
+            className="w-full rounded-xl border border-app-border bg-app-card px-4 py-3 text-xs leading-5 text-white outline-none ring-emerald-500 transition placeholder:text-neutral-500 focus:ring-2"
+          />
+          <p className="mt-2 text-xs text-neutral-500">Scrapes up to 100 jobs from this search.</p>
+        </label>
+
         <div className="space-y-2">
           <button
             onClick={onScrape}
-            disabled={isScraping}
+            disabled={isScraping || !searchUrl.trim()}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isScraping ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black" /> : null}

@@ -3,7 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { JobCard } from "@/components/JobCard";
 import { Sidebar } from "@/components/Sidebar";
+import { DEFAULT_LINKEDIN_SEARCH_URL } from "@/lib/apify";
 import type { Job } from "@/lib/types";
+
+const SEARCH_URL_STORAGE_KEY = "jobScoutSearchUrl";
+
+type ScrapeSummary = {
+  processed?: number;
+  skipped?: number;
+  errors?: number;
+  error?: string;
+};
 
 type LastScrapedPayload = {
   last_scraped: string | null;
@@ -30,10 +40,23 @@ export default function DashboardPage() {
   const [tier, setTier] = useState("");
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
+  const [searchUrl, setSearchUrl] = useState(DEFAULT_LINKEDIN_SEARCH_URL);
   const [loading, setLoading] = useState(true);
   const [isScraping, setIsScraping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scrapeMessage, setScrapeMessage] = useState<string | null>(null);
   const [lastScraped, setLastScraped] = useState<string | null>(null);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(SEARCH_URL_STORAGE_KEY);
+    if (saved) {
+      setSearchUrl(saved);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(SEARCH_URL_STORAGE_KEY, searchUrl);
+  }, [searchUrl]);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -97,15 +120,21 @@ export default function DashboardPage() {
   async function scrapeNow() {
     setIsScraping(true);
     setError(null);
+    setScrapeMessage(null);
 
     try {
-      const response = await fetch("/api/scrape", { method: "POST" });
-      const payload = await readApiPayload<{ error?: string }>(response);
+      const response = await fetch("/api/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchUrl: searchUrl.trim() })
+      });
+      const payload = await readApiPayload<ScrapeSummary>(response);
 
       if (!response.ok) {
         throw new Error(payload.error ?? "Scrape failed");
       }
 
+      setScrapeMessage(`Added ${payload.processed ?? 0} jobs. Skipped ${payload.skipped ?? 0}. Errors ${payload.errors ?? 0}.`);
       await loadJobs();
     } catch (scrapeError) {
       setError(scrapeError instanceof Error ? scrapeError.message : "Scrape failed");
@@ -121,11 +150,13 @@ export default function DashboardPage() {
         tier={tier}
         status={status}
         search={search}
+        searchUrl={searchUrl}
         lastScraped={lastScraped}
         isScraping={isScraping}
         onTierChange={setTier}
         onStatusChange={setStatus}
         onSearchChange={setSearch}
+        onSearchUrlChange={setSearchUrl}
         onScrape={scrapeNow}
       />
 
@@ -139,6 +170,7 @@ export default function DashboardPage() {
         </div>
 
         {error ? <div className="mb-6 rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{error}</div> : null}
+        {scrapeMessage ? <div className="mb-6 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">{scrapeMessage}</div> : null}
 
         <div className="space-y-4">
           {jobs.map((job) => (
