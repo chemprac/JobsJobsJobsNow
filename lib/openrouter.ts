@@ -68,10 +68,19 @@ export async function createChatCompletion({
   const payload = (await response.json()) as ChatCompletionResponse;
 
   if (!response.ok) {
-    throw new Error(payload.error?.message ?? `OpenRouter request failed with ${response.status}.`);
+    const message =
+      payload.error?.message ??
+      (payload as { error?: string }).error ??
+      `OpenRouter request failed with ${response.status}.`;
+    throw new Error(typeof message === "string" ? message : `OpenRouter request failed with ${response.status}.`);
   }
 
-  return payload.choices?.[0]?.message?.content?.trim() ?? "";
+  const content = payload.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!content) {
+    throw new Error("OpenRouter returned an empty response.");
+  }
+
+  return content;
 }
 
 export async function streamChatCompletionText({

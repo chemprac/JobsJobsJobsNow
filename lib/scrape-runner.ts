@@ -22,7 +22,7 @@ export async function scrapeAndScoreJobs(searchUrl: string, maxItems: number): P
 
       const { data: existing, error: lookupError } = await supabase
         .from("jobs")
-        .select("id")
+        .select("id, blocker")
         .eq("job_id", job.jobId)
         .maybeSingle();
 
@@ -30,13 +30,27 @@ export async function scrapeAndScoreJobs(searchUrl: string, maxItems: number): P
         throw lookupError;
       }
 
-      if (existing) {
+      if (existing && existing.blocker !== "Scoring failed") {
         summary.skipped += 1;
         continue;
       }
 
       const scoring = await scoreJob(job);
-      const { error: insertError } = await supabase.from("jobs").insert(mapApifyJobToInsert(job, scoring));
+      const row = mapApifyJobToInsert(job, scoring);
+
+      if (existing) {
+        const { error: updateError } = await supabase.from("jobs").update(row).eq("id", existing.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        summary.processed += 1;
+        await delay(500);
+        continue;
+      }
+
+      const { error: insertError } = await supabase.from("jobs").insert(row);
 
       if (insertError) {
         throw insertError;
