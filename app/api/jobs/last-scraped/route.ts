@@ -3,17 +3,18 @@ import { getSupabaseAnon } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-type LastScrapedRow = {
-  last_scraped: string | null;
-};
-
 export async function GET() {
   const supabase = getSupabaseAnon();
-  const { data, error } = await supabase.from("jobs").select("last_scraped:scraped_at.max()");
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("scraped_at")
+    .order("scraped_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ last_scraped: (data as unknown as LastScrapedRow[] | null)?.[0]?.last_scraped ?? null });
+  return NextResponse.json({ last_scraped: data?.scraped_at ?? null });
 }
