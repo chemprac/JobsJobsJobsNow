@@ -10,6 +10,20 @@ type LastScrapedPayload = {
   error?: string;
 };
 
+async function readApiPayload<T extends { error?: string }>(response: Response): Promise<T> {
+  const text = await response.text();
+
+  if (!text.trim()) {
+    return {} as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return { error: text.slice(0, 200) || `Request failed with status ${response.status}` } as T;
+  }
+}
+
 export default function DashboardPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [allJobs, setAllJobs] = useState<Job[]>([]);
@@ -36,11 +50,11 @@ export default function DashboardPage() {
         fetch("/api/jobs", { cache: "no-store" }),
         fetch("/api/jobs/last-scraped", { cache: "no-store" })
       ]);
-      const [payload, allPayload, lastScrapedPayload] = (await Promise.all([
-        response.json(),
-        allResponse.json(),
-        lastScrapedResponse.json()
-      ])) as [{ jobs?: Job[]; error?: string }, { jobs?: Job[]; error?: string }, LastScrapedPayload];
+      const [payload, allPayload, lastScrapedPayload] = await Promise.all([
+        readApiPayload<{ jobs?: Job[]; error?: string }>(response),
+        readApiPayload<{ jobs?: Job[]; error?: string }>(allResponse),
+        readApiPayload<LastScrapedPayload>(lastScrapedResponse)
+      ]);
 
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to load jobs");
@@ -86,7 +100,7 @@ export default function DashboardPage() {
 
     try {
       const response = await fetch("/api/scrape", { method: "POST" });
-      const payload = await response.json();
+      const payload = await readApiPayload<{ error?: string }>(response);
 
       if (!response.ok) {
         throw new Error(payload.error ?? "Scrape failed");
